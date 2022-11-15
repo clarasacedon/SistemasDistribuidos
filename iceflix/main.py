@@ -4,7 +4,7 @@ import logging
 
 import Ice
 
-import IceFlix
+import IceFlix  # pylint:disable=import-error
 
 
 class Main(IceFlix.Main):
@@ -14,19 +14,23 @@ class Main(IceFlix.Main):
     for this interface. Use it with caution
     """
 
-    def getAuthenticator(self, current):
+    def getAuthenticator(self, current):  # pylint:disable=invalid-name, unused-argument
+        "Return the stored Authenticator proxy."
         # TODO: implement
         return None
 
-    def getCatalog(self, current):
+    def getCatalog(self, current):  # pylint:disable=invalid-name, unused-argument
+        "Return the stored MediaCatalog proxy."
         # TODO: implement
         return None
-    
-    def newService(self, object, service_id, current):
+
+    def newService(self, proxy, service_id, current):  # pylint:disable=invalid-name, unused-argument
+        "Receive a proxy of a new service."
         # TODO: implement
         return
-    
-    def announce(self, object, service_id, current):
+
+    def announce(self, proxy, service_id, current):  # pylint:disable=invalid-name, unused-argument
+        "Announcements handler."
         # TODO: implement
         return
 

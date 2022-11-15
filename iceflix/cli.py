@@ -21,7 +21,7 @@ def main_service():
 def catalog_service():
     """Handles the `catalogservice` CLI command."""
     print("Catalog service")
-    sys.exit(0)
+    return 0
 
 
 def streamprovider_service():
@@ -38,5 +38,6 @@ def authentication_service():
 
 def client():
     """Handles the IceFlix client CLI command."""
-    print("Starting IceFlix client...")
-    sys.exit(0)
+    setup_logging()
+    logging.info("Starting IceFlix client...")
+    return 0
