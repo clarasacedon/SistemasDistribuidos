@@ -6,9 +6,15 @@ import sys
 from iceflix.main import MainApp
 
 
+LOG_FORMAT = '%(asctime)s - %(levelname)-7s - %(module)s:%(funcName)s:%(lineno)d - %(message)s'
+
+
 def setup_logging():
     """Configure the logging."""
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format=LOG_FORMAT,
+    )
 
 
 def main_service():
@@ -20,20 +26,23 @@ def main_service():
 
 def catalog_service():
     """Handles the `catalogservice` CLI command."""
-    print("Catalog service")
+    setup_logging()
+    logging.info("Catalog service")
     return 0
 
 
-def streamprovider_service():
+def file_service():
     """Handles the `streamingservice` CLI command."""
-    print("Streaming service")
-    sys.exit(0)
+    setup_logging()
+    logging.info("File service")
+    return 0
 
 
 def authentication_service():
     """Handles the `authenticationservice` CLI command."""
-    print("Authentication service")
-    sys.exit(0)
+    setup_logging()
+    logging.info("Authentication service")
+    return 0
 
 
 def client():
