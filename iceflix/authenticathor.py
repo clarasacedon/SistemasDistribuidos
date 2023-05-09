@@ -113,12 +113,18 @@ class UserUpdate:
             print('Token ', token, ' from', serviceId, ' ignored')
 
     def newUser(self, user, passwordHash, serviceId):
-        
-        pass
+        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+            print('New user for ', user, ' received from', serviceId)
+            self.servant.currentUsers.userPasswords[user] = passwordHash
+        else:
+            print('New user for ', user, ' from', serviceId, ' ignored')
 
     def removeUser(self, user, serviceId):
-        
-        pass
+        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+            print('User ', user, ' removed from ', serviceId)
+            self.authenticator.currentUsers.userPasswords.pop(user)
+        else:
+            print('User ', user, ' from', serviceId, ' ignored')
 
 class Announcement:
     def announce(self, service, serviceId):
