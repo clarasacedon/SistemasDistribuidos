@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 
-import os
-import secrets
+import datetime
 import Ice
 import IceFlix
+import json
+import os
+import secrets
+import time
 
 Ice.loadSlice('iceflix/iceflix.ice')
 
@@ -52,25 +55,46 @@ class Authenticator:
 
     def isAdmin(self, adminToken):
         #Devuelve un valor booleano para comprobar si el token proporcionado corresponde o no con el administrativo.
-        
-        pass
+        return self.adminToken == adminToken
 
     def addUser(self, user, passwordHash, adminToken):
-        #Función administrativa que permite añadir unas nuevas credenciales en el almacén de datos si el token 
+        #Funcion administrativa que permite aniadir unas nuevas credenciales en el almacen de datos si el token 
         #administrativo es correcto.
 
-        pass
+        if not self.isAdmin(adminToken):
+            raise IceFlix.Unauthorized
+
+        self.users[user] = [{
+            "token": secrets.token_hex(16),
+            "passwordHash": passwordHash,
+            "timestamp": time.mktime(datetime.datetime.now().timetuple())
+        }]
+
+        with open(PATH_USERS, 'w') as file:
+            json.dump(self.users, file)
+
+        self.userUpdate.newUser(user, passwordHash, self.id)
 
     def removeUser(self, user, adminToken):
-        #Función administrativa que permite eliminar unas credenciales del almacén de datos si el token 
+        #Funcion administrativa que permite eliminar unas credenciales del almacen de datos si el token 
         #administrativo es correcto.
+        if not self.isAdmin(adminToken):
+            raise IceFlix.Unauthorized
+        
+        self.users.pop(user)
 
-        pass
+        with open(PATH_USERS, 'w') as file:
+            json.dump(self.users, file)
+
+        self.userUpdate.removeUser(user, self.id)
 
     def bulkUpdate(self):
-
-        pass
-
+        auth_data = IceFlix.AuthenticatorData()
+        auth_data.adminToken = self.adminToken
+        auth_data.currentUsers = {user: data[0]['passwordHash'] for user, data in self.users.items()}
+        auth_data.activeTokens = {user: data[0]['token'] for user, data in self.users.items() if data[0]['token']}
+        
+        return auth_data
 
 # Interface to be used in the topic for user related updates
 class UserUpdate:
@@ -89,7 +113,6 @@ class UserUpdate:
     def removeUser(self, user, serviceId):
         
         pass
-
 
 class Announcement:
     def announce(self, service, serviceId):
