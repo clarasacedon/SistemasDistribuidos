@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 
 import datetime
-import threading
 import Ice
 import IceFlix
 import json
 import os
 import secrets
+import threading
 import time
 
 Ice.loadSlice('iceflix/iceflix.ice')
@@ -14,11 +14,11 @@ Ice.loadSlice('iceflix/iceflix.ice')
 PATH_USERS = 'iceflix/users.json'
 
 try:
-	import iceflix
+	import IceFlix
 except ModuleNotFoundError:
 	Ice.loadSlice(os.path.join(os.path.dirname(__file__), "iceflix/iceflix.ice"))
-	import iceflix                       
-	
+	import IceFlix                       
+
 # Auth server #
 class AuthenticatorData:
     def __init__(self):
@@ -127,6 +127,14 @@ class UserUpdate:
             print('User ', user, ' from', serviceId, ' ignored')
 
 class Announcement:
+    def __init__(self,authenticator:Authenticator):
+        self.authenticator = authenticator
+
     def announce(self, service, serviceId):
-        
-        pass
+        if serviceId != self.authenticator.id and serviceId not in self.authenticator.proxies:
+            if service.ice_isA('::IceFlix::Authenticator'):
+                self.authenticator.proxies[serviceId] = IceFlix.AuthenticatorPrx.uncheckedCast(service)
+            elif service.ice_isA('::IceFlix::Main'):
+                self.authenticator.proxies[serviceId] = IceFlix.MainPrx.uncheckedCast(service)
+        else:
+            print('Service: ', service, ' ignored')
