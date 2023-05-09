@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
 import datetime
+import sys
 import Ice
 import IceFlix
+import IceStorm
 import json
 import os
 import secrets
@@ -138,3 +140,50 @@ class Announcement:
                 self.authenticator.proxies[serviceId] = IceFlix.MainPrx.uncheckedCast(service)
         else:
             print('Service: ', service, ' ignored')
+
+class Server(Ice.Application):
+    def subscribe_topic(topic_manager, topic_name, servant_type, adapter, proxy_name):
+        servant = servant_type()
+        proxy = adapter.addWithUUID(servant)
+        try:
+            topic = topic_manager.create(topic_name)
+        except IceStorm.TopicExists:
+            topic = topic_manager.retrieve(topic_name)
+        topic.subscribeAndGetPublisher({}, proxy)
+        setattr(servant, proxy_name, IceFlix.uncheckedCast(proxy))
+        return topic
+        
+    def wait_and_announce(self, topic, topic_updates):
+
+        print("Waiting for other services to be announced...")
+        
+        
+        print("Making the announcement...")
+
+    def run(self, args):
+        tester_proxy = "IceStorm.TopicManager"
+        broker = self.communicator()
+
+        topic_manager = IceStorm.TopicManagerPrx.checkedCast(broker.stringToProxy(tester_proxy))
+
+        adminToken = broker.getProperties().getProperty('AdminToken')
+        servant = Authenticator(adminToken)
+        adapter = broker.createObjectAdapterWithEndpoints("AuthenticatorAdapter", "tcp")
+        authenticator_proxy = adapter.add(servant, broker.stringToIdentity("authenticator"))
+        adapter.activate()
+
+        topic = self.subscribe_topic(topic_manager, 'Announcements', Announcement, adapter, 'discovery_publisher')
+        topic_updates = self.subscribe_topic(topic_manager, 'UserUpdates', UserUpdate, adapter, 'updates_publisher')
+
+        timer = threading.Timer(10, self.wait_and_announce, args=[topic, topic_updates])
+        timer.daemon = True
+        timer.start()
+
+        broker.waitForShutdown()
+        self.shutdownOnInterrupt()
+        
+        return 0
+        
+if __name__ == "__main__":
+    server=Server()
+    sys.exit(server.main(sys.argv))
