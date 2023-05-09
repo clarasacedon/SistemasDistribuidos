@@ -154,7 +154,7 @@ class Server(Ice.Application):
         setattr(servant, proxy_name, IceFlix.uncheckedCast(proxy))
         return topic
         
-    def announceAuth(self, authenticator_proxy, servant, topic):
+    def announceAuth(self, authenticator_proxy, servant,topic):
         while True:
             publisher = topic.getPublisher()
             servant.announcement = IceFlix.AnnouncementPrx.uncheckedCast(publisher)
@@ -162,7 +162,9 @@ class Server(Ice.Application):
             time.sleep(10)
 
     def wait_and_announce(self, authenticator_proxy, auth:Authenticator, topic, topic_updates):
+
         print("Waiting for other services to be announced...")
+        logging.warning("Anuncio servicio")
 
         print("Making the announcement...")
         t = threading.Thread(target=self.announceAuth,args=(authenticator_proxy, auth, topic))
