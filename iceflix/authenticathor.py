@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import datetime
+import threading
 import Ice
 import IceFlix
 import json
@@ -27,7 +28,6 @@ class AuthenticatorData:
 
 class Authenticator:
     def refreshAuthorization(self, user, passwordHash):
-        #Crea un nuevo token de autorizacion de usuario si las credenciales son validas.
         password = self.usersDB.userPasswords.get(user)
         if password is None:
             raise IceFlix.Unauthorized()
@@ -39,14 +39,12 @@ class Authenticator:
         return token
 
     def isAuthorized(self, userToken):
-        #Indica si un token dado es valido o no.
         if userToken in self.usersDB.usersToken:
             return True
         else:
             return False
 
     def whois(self, userToken):
-        #Permite descubrir el nombre del usuario a partir de un token valido.
         if not self.isAuthorized(userToken):
             raise IceFlix.Unauthorized()
         else:
@@ -54,13 +52,9 @@ class Authenticator:
             return user
 
     def isAdmin(self, adminToken):
-        #Devuelve un valor booleano para comprobar si el token proporcionado corresponde o no con el administrativo.
         return self.adminToken == adminToken
 
     def addUser(self, user, passwordHash, adminToken):
-        #Funcion administrativa que permite aniadir unas nuevas credenciales en el almacen de datos si el token 
-        #administrativo es correcto.
-
         if not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
 
@@ -76,8 +70,6 @@ class Authenticator:
         self.userUpdate.newUser(user, passwordHash, self.id)
 
     def removeUser(self, user, adminToken):
-        #Funcion administrativa que permite eliminar unas credenciales del almacen de datos si el token 
-        #administrativo es correcto.
         if not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
         
@@ -98,13 +90,22 @@ class Authenticator:
 
 # Interface to be used in the topic for user related updates
 class UserUpdate:
+    def __init__(self,authenticator:Authenticator):
+        self.authenticator = authenticator
+
     def newToken(self, user, token, serviceId):
-        
-        pass
+        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+            print('New token for ', user, ' received from', serviceId)
+            self.servant.users.usersToken[token] = user
+        else:
+            print('New token for ', user, ' from', serviceId, ' ignored')
 
     def revokeToken(self, token, serviceId):
-        
-        pass
+        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+            print("Token ", token, " revoked from ", serviceId)
+        elif serviceId == self.authenticator.id:
+            print('Token ', token, ' timed out')
+        self.authenticator.users.usersToken.pop(token)
 
     def newUser(self, user, passwordHash, serviceId):
         
