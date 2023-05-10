@@ -192,6 +192,8 @@ class Server(Ice.Application):
         timer.daemon = True
         timer.start()
 
+        print("PRUEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+
         broker.waitForShutdown()
         self.shutdownOnInterrupt()
         
