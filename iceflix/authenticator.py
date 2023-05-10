@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 
-import datetime
 import random
 import sys
 import Ice
 import json
 import os
 import secrets
-import threading
 import time
 
 Ice.loadSlice('iceflix/iceflix.ice')
@@ -37,8 +35,7 @@ class Authenticator:
         elif password == passwordHash:
             token = secrets.token_hex(16)
             self.userUpdate.newToken(user,token,self.id)
-            clock = threading.Timer(120.0, self.revocations.revokeToken, args=[token, self.id])
-            clock.start()
+            time.sleep(120.0, self.revocations.revokeToken(token, self.id), args=[token, self.id])
         else:
             raise IceFlix.Unauthorized()
         return token
@@ -60,13 +57,13 @@ class Authenticator:
         return self.adminToken == adminToken
 
     def addUser(self, user, passwordHash, adminToken, current=None):
-        if self.users.get(user) or not self.isAdmin(adminToken):
+        if self.currentUsers.get(user) or not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
         
         self.currentUsers[user] = [{
             "token": secrets.token_hex(16),
             "passwordHash": passwordHash,
-            "timestamp": time.mktime(datetime.datetime.now().timetuple())
+            "timestamp": time.time()
         }]
 
         with open(PATH_USERS, 'w') as file:
@@ -75,7 +72,7 @@ class Authenticator:
         self.userUpdate.newUser(user, passwordHash, self.id)
 
     def removeUser(self, user, adminToken, current=None):
-        if not self.users.get(user) or not self.isAdmin(adminToken):
+        if not self.currentUsers.get(user) or not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
         
         self.currentUsers.pop(user)
@@ -159,7 +156,7 @@ class Server(Ice.Application):
             publisher = topic.getPublisher()
             servant.announcement = IceFlix.AnnouncementPrx.uncheckedCast(publisher)
             servant.announcement.announce(authenticator_proxy,servant.id)
-            time.sleep(random.randint(1,10))
+            time.sleep(random.randint(1,10), self.announceAuth(authenticator_proxy, servant, topic))
 
     def find_authenticator_main(authenticator):
         auth, main = None
