@@ -95,8 +95,8 @@ class Authenticator:
 
 # Interface to be used in the topic for user related updates
 class UserUpdate:
-    def __init__(self,authenticator:Authenticator):
-        self.authenticator = authenticator
+    def __init__(self,authenticator):
+        self.authenticator = IceFlix.AuthenticatorPrx.uncheckedCast(Authenticator)
 
     def newToken(self, user, token, serviceId):
         if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
