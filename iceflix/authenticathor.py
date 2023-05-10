@@ -163,9 +163,12 @@ class Server(Ice.Application):
 
     def wait_and_announce(self, authenticator_proxy, auth:Authenticator, topic, topic_updates):
         print("Waiting for other services to be announced...")
+        t = threading.Thread(target=self.announceAuth,args=(authenticator_proxy, auth, topic))
+        t.daemon = True
+        t.start()
 
         print("Making the announcement...")
-        t = threading.Thread(target=self.announceAuth,args=(authenticator_proxy, auth, topic))
+        t = threading.Thread(target=Announcement.announce,args=(authenticator_proxy, auth, topic))
         t.daemon = True
         t.start()
 
