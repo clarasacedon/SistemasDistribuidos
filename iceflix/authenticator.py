@@ -92,7 +92,7 @@ class Authenticator:
 
 # Interface to be used in the topic for user related updates
 class UserUpdate:
-    def __init__(self,authenticator):
+    def __init__(self, authenticator):
         self.authenticator = IceFlix.AuthenticatorPrx.uncheckedCast(Authenticator)
 
     def newToken(self, user, token, serviceId, current=None):
@@ -127,8 +127,8 @@ class UserUpdate:
             print('User ', user, ' from', serviceId, ' ignored')
 
 class Announcement:
-    def __init__(self,authenticator:Authenticator):
-        self.authenticator = authenticator
+    def __init__(self, authenticator):
+        self.authenticator = IceFlix.AuthenticatorPrx.uncheckedCast(Authenticator)
 
     def announce(self, service, serviceId, current=None):
         if serviceId != self.authenticator.id and serviceId not in self.authenticator.proxies:
