@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 
 import datetime
-import logging
+import random
 import sys
 import Ice
-import IceFlix
-import IceStorm
 import json
 import os
 import secrets
@@ -17,10 +15,12 @@ Ice.loadSlice('iceflix/iceflix.ice')
 PATH_USERS = 'iceflix/users.json'
 
 try:
-	import IceFlix
+    import IceFlix
+    import IceStorm
 except ModuleNotFoundError:
-	Ice.loadSlice(os.path.join(os.path.dirname(__file__), "iceflix/iceflix.ice"))
-	import IceFlix                       
+    Ice.loadSlice(os.path.join(os.path.dirname(__file__), "iceflix/iceflix.ice"))
+    import IceFlix
+    import IceStorm                    
 
 # Auth server #
 class AuthenticatorData:
@@ -30,7 +30,7 @@ class AuthenticatorData:
         self.activeTokens = {}  # users: tokens
 
 class Authenticator:
-    def refreshAuthorization(self, user, passwordHash):
+    def refreshAuthorization(self, user, passwordHash, current=None):
         password = self.currentUsers.userPasswords.get(user)
         if password is None:
             raise IceFlix.Unauthorized()
@@ -43,26 +43,26 @@ class Authenticator:
             raise IceFlix.Unauthorized()
         return token
 
-    def isAuthorized(self, userToken):
+    def isAuthorized(self, userToken, current=None):
         if userToken in self.currentUsers.activeTokens:
             auth = True
         else:
             auth = False
         return auth
 
-    def whois(self, userToken):
+    def whois(self, userToken, current=None):
         if not self.isAuthorized(userToken):
             raise IceFlix.Unauthorized()
         else:
             return self.currentUsers.activeTokens.get(userToken)
 
-    def isAdmin(self, adminToken):
+    def isAdmin(self, adminToken, current=None):
         return self.adminToken == adminToken
 
-    def addUser(self, user, passwordHash, adminToken):
-        if not self.isAdmin(adminToken):
+    def addUser(self, user, passwordHash, adminToken, current=None):
+        if self.users.get(user) or not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
-
+        
         self.currentUsers[user] = [{
             "token": secrets.token_hex(16),
             "passwordHash": passwordHash,
@@ -74,8 +74,8 @@ class Authenticator:
 
         self.userUpdate.newUser(user, passwordHash, self.id)
 
-    def removeUser(self, user, adminToken):
-        if not self.isAdmin(adminToken):
+    def removeUser(self, user, adminToken, current=None):
+        if not self.users.get(user) or not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
         
         self.currentUsers.pop(user)
@@ -85,7 +85,7 @@ class Authenticator:
 
         self.userUpdate.removeUser(user, self.id)
 
-    def bulkUpdate(self):
+    def bulkUpdate(self, current=None):
         auth_data = IceFlix.AuthenticatorData()
         auth_data.adminToken = self.adminToken
         auth_data.currentUsers = {user: data[0]['passwordHash'] for user, data in self.currentUsers.items()}
@@ -98,14 +98,14 @@ class UserUpdate:
     def __init__(self,authenticator):
         self.authenticator = IceFlix.AuthenticatorPrx.uncheckedCast(Authenticator)
 
-    def newToken(self, user, token, serviceId):
+    def newToken(self, user, token, serviceId, current=None):
         if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
             print('New token for ', user, ' received from', serviceId)
-            self.servant.currentUsers.activeTokens[token] = user
+            self.authenticator.currentUsers.activeTokens[token] = user
         else:
             print('New token for ', user, ' from', serviceId, ' ignored')
 
-    def revokeToken(self, token, serviceId):
+    def revokeToken(self, token, serviceId, current=None):
         if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
             print("Token ", token, " revoked from ", serviceId)
             self.authenticator.currentUsers.activeTokens.pop(token)
@@ -115,17 +115,17 @@ class UserUpdate:
         else:
             print('Token ', token, ' from', serviceId, ' ignored')
 
-    def newUser(self, user, passwordHash, serviceId):
+    def newUser(self, user, passwordHash, serviceId, current=None):
         if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
             print('New user for ', user, ' received from', serviceId)
-            self.servant.currentUsers.userPasswords[user] = passwordHash
+            self.authenticator.currentUsers[user] = passwordHash
         else:
             print('New user for ', user, ' from', serviceId, ' ignored')
 
-    def removeUser(self, user, serviceId):
+    def removeUser(self, user, serviceId, current=None):
         if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
             print('User ', user, ' removed from ', serviceId)
-            self.authenticator.currentUsers.userPasswords.pop(user)
+            self.authenticator.currentUsers.pop(user)
         else:
             print('User ', user, ' from', serviceId, ' ignored')
 
@@ -133,7 +133,7 @@ class Announcement:
     def __init__(self,authenticator:Authenticator):
         self.authenticator = authenticator
 
-    def announce(self, service, serviceId):
+    def announce(self, service, serviceId, current=None):
         if serviceId != self.authenticator.id and serviceId not in self.authenticator.proxies:
             if service.ice_isA('::IceFlix::Authenticator'):
                 self.authenticator.proxies[serviceId] = IceFlix.AuthenticatorPrx.uncheckedCast(service)
@@ -143,7 +143,7 @@ class Announcement:
             print('Service: ', service, ' ignored')
 
 class Server(Ice.Application):
-    def subscribe_topic(topic_manager, topic_name, servant_type, adapter, proxy_name):
+    def subscribe_topic(topic_manager, topic_name, servant_type, adapter, proxy_name, current=None):
         servant = servant_type()
         proxy = adapter.addWithUUID(servant)
         try:
@@ -154,23 +154,22 @@ class Server(Ice.Application):
         setattr(servant, proxy_name, IceFlix.uncheckedCast(proxy))
         return topic
         
-    def announceAuth(self, authenticator_proxy, servant, topic):
+    def announceAuth(self, authenticator_proxy, servant, topic, current=None):
         while True:
             publisher = topic.getPublisher()
             servant.announcement = IceFlix.AnnouncementPrx.uncheckedCast(publisher)
             servant.announcement.announce(authenticator_proxy,servant.id)
-            time.sleep(10)
+            time.sleep(random.randint(1,10))
 
-    def wait_and_announce(self, authenticator_proxy, auth:Authenticator, topic, topic_updates):
-        print("Waiting for other services to be announced...")
-        t = threading.Thread(target=self.announceAuth,args=(authenticator_proxy, auth, topic))
-        t.daemon = True
-        t.start()
-
-        print("Making the announcement...")
-        t = threading.Thread(target=Announcement.announce,args=(authenticator_proxy, auth, topic))
-        t.daemon = True
-        t.start()
+    def find_authenticator_main(authenticator):
+        auth, main = None
+        for key in authenticator.proxies:
+            value = authenticator.proxies.get(key)[0]["service"]
+            if(IceFlix.AuthenticatorPrx.checkedCast(value)):
+                auth = IceFlix.AuthenticatorPrx.checkedCast(value)
+            elif(IceFlix.MainPrx.checkedCast(value)):
+                main = IceFlix.MainPrx.checkedCast(value)
+        return auth, main
 
     def run(self, args):
         tester_proxy = "IceStorm.TopicManager"
@@ -178,7 +177,7 @@ class Server(Ice.Application):
 
         topic_manager = IceStorm.TopicManagerPrx.checkedCast(broker.stringToProxy(tester_proxy))
 
-        adminToken = broker.getProperties().getProperty('AdminToken')
+        adminToken = broker.getProperties().getProperty('adminToken')
         servant = Authenticator(adminToken)
         adapter = broker.createObjectAdapterWithEndpoints("AuthenticatorAdapter", "tcp")
         authenticator_proxy = adapter.add(servant, broker.stringToIdentity("authenticator"))
@@ -186,13 +185,25 @@ class Server(Ice.Application):
 
         topic = self.subscribe_topic(topic_manager, 'Announcements', Announcement, adapter, 'discovery_publisher')
         topic_updates = self.subscribe_topic(topic_manager, 'UserUpdates', UserUpdate, adapter, 'updates_publisher')
+        
+        time.sleep(12)
+        if len(servant.proxies) == 0:
+            self.announceAuth(authenticator_proxy, servant, topic, topic_updates)
+        else:
+            authenticator, main = self.find_authenticator_main(servant)
 
-        timer = threading.Timer(10, self.wait_and_announce(authenticator_proxy, servant, topic, topic_updates), 
-                                args=[topic, topic_updates])
-        timer.daemon = True
-        timer.start()
-
-        print("PRUEBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+            if main == None:
+                print("No main found, shutting down")
+                self.communicator().shutdown()
+                return
+            
+            if authenticator != None:
+                print("BulkUpdate from", authenticator, "\n")
+                authData = authenticator.bulkUpdate()
+                servant.adminToken = authData.adminToken
+                servant.currentUsers = authData.currentUsers
+                servant.activeTokens = authData.activeTokens
+                self.announceAuth()
 
         broker.waitForShutdown()
         self.shutdownOnInterrupt()
