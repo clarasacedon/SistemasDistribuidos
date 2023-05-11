@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
 #iceflix-authenticator --Ice.Config==configs/authenticator.config
+#./iceflix/authenticator.py --Ice.Config=configs/authenticator.config
 
-echo "Starting service..."
-python iceflix/authenticator.py --Ice.Config=configs/authenticator.config
+python3 iceflix/authenticator.py --Ice.Config=configs/authenticator.config
