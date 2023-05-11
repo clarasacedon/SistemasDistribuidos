@@ -147,17 +147,20 @@ class Announcement:
             print('Service: ', service, ' ignored')
 
 class Server(Ice.Application):
-    def subscribe_topic(topic_manager, topic_name, servant_type, adapter, proxy_name, current=None):
-        servant = servant_type()
-        proxy = adapter.addWithUUID(servant)
-        try:
-            topic = topic_manager.create(topic_name)
-        except IceStorm.TopicExists:
-            topic = topic_manager.retrieve(topic_name)
-        topic.subscribeAndGetPublisher({}, proxy)
-        setattr(servant, proxy_name, IceFlix.uncheckedCast(proxy))
-        return topic
+    def subscribe_topic(object, topic_manager, topic_name, adapter, current=None):
+        microservice = adapter.addWithUUID(object)
         
+        try:
+            topic = topic_manager.retrieve(topic_name)
+        except IceStorm.NoSuchTopic:
+            topic = topic_manager.create(topic_name)
+
+        topic.subscribeAndGetPublisher({}, microservice)
+        publisher = topic.getPublisher()
+        proxy = IceFlix.UserUpdatesPrx.uncheckedCast(publisher)
+        
+        return topic, proxy
+
     def announceAuth(self, authenticator_proxy, servant, topic, current=None):
         while True:
             publisher = topic.getPublisher()
@@ -177,43 +180,45 @@ class Server(Ice.Application):
                 
         return auth, main
 
-    def run(self, args):
+    def run(self, argv):
         tester_proxy = "IceStorm.TopicManager"
         broker = self.communicator()
 
         topic_manager = IceStorm.TopicManagerPrx.checkedCast(broker.stringToProxy(tester_proxy))
 
         adminToken = broker.getProperties().getProperty('adminToken')
-        servant = Authenticator(adminToken)
+        servant = Authenticator()
+        servant.database.adminToken = adminToken
         adapter = broker.createObjectAdapterWithEndpoints("AuthenticatorAdapter", "tcp")
         authenticator_proxy = adapter.add(servant, broker.stringToIdentity("authenticator"))
         adapter.activate()
 
-        topic = self.subscribe_topic(topic_manager, 'Announcements', Announcement, adapter, 'discovery_publisher')
-        topic_updates = self.subscribe_topic(topic_manager, 'UserUpdates', UserUpdate, adapter, 'updates_publisher')
-        
+        user_updates = UserUpdate(servant)
+        announce = Announcement(servant)
+
+        topicA, proxyA = self.subscribe_topic(announce, topic_manager, 'Announcement', adapter)
+        topicU, proxyU = self.subscribe_topic(user_updates, topic_manager, 'UserUpdates', adapter)
+        servant.userUpdate = proxyU
+
         time.sleep(12)
         if len(servant.proxies) == 0:
-            self.announceAuth(authenticator_proxy, servant, topic, topic_updates)
+            self.announceAuth(authenticator_proxy, servant, announce)
         else:
             authenticator, main = self.find_authenticator_main(servant)
 
-            if main == None:
-                print("No main found, shutting down")
-                self.communicator().shutdown()
-                return
-            
             if authenticator != None:
-                print("BulkUpdate from", authenticator, "\n")
+                print("BulkUpdate from ", authenticator, "\n")
                 authData = authenticator.bulkUpdate()
-                servant.adminToken = authData.adminToken
-                servant.currentUsers = authData.currentUsers
-                servant.activeTokens = authData.activeTokens
-                self.announceAuth()
+                servant.database.adminToken = authData.adminToken
+                servant.database.currentUsers = authData.currentUsers
+                servant.database.activeTokens = authData.activeTokens
+                self.announceAuth(authenticator_proxy, servant, announce)
 
         broker.waitForShutdown()
         self.shutdownOnInterrupt()
-        
+        topicA.unsubscribe(proxyA)
+        topicU.unsubscribe(proxyU)
+
         return 0
         
 if __name__ == "__main__":
