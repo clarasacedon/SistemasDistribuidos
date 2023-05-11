@@ -140,9 +140,9 @@ class Announcement:
     def announce(self, service, serviceId, current=None):
         if serviceId != self.servant.id and serviceId not in self.servant.proxies:
             if service.ice_isA('::IceFlix::Authenticator'):
-                self.servant.proxies[serviceId] = IceFlix.AuthenticatorPrx.uncheckedCast(service)
+                self.servant.proxies['Authenticator'][serviceId] = IceFlix.AuthenticatorPrx.uncheckedCast(service)
             elif service.ice_isA('::IceFlix::Main'):
-                self.servant.proxies[serviceId] = IceFlix.MainPrx.uncheckedCast(service)
+                self.servant.proxies['Main'][serviceId] = IceFlix.MainPrx.uncheckedCast(service)
         else:
             print('Service: ', service, ' ignored')
 
@@ -161,18 +161,20 @@ class Server(Ice.Application):
     def announceAuth(self, authenticator_proxy, servant, topic, current=None):
         while True:
             publisher = topic.getPublisher()
-            servant.announcement = IceFlix.AnnouncementPrx.uncheckedCast(publisher)
-            servant.announcement.announce(authenticator_proxy,servant.id)
+            announcement = IceFlix.AnnouncementPrx.uncheckedCast(publisher)
+            announcement.announce(authenticator_proxy,servant.id)
             time.sleep(random.randint(1,10), self.announceAuth(authenticator_proxy, servant, topic))
 
     def find_authenticator_main(authenticator):
         auth, main = None
-        for key in authenticator.proxies:
-            value = authenticator.proxies.get(key)[0]["service"]
-            if(IceFlix.AuthenticatorPrx.checkedCast(value)):
-                auth = IceFlix.AuthenticatorPrx.checkedCast(value)
-            elif(IceFlix.MainPrx.checkedCast(value)):
-                main = IceFlix.MainPrx.checkedCast(value)
+        for proxy in authenticator.proxies['Main']:
+            value = authenticator.proxies['Main'][proxy]
+            main = IceFlix.MainPrx.checkedCast(value)
+
+        for proxy in authenticator.proxies['Authenticator']:
+            value = authenticator.proxies['Authenticator'][proxy]
+            auth = IceFlix.AuthenticatorPrx.checkedCast(value)
+                
         return auth, main
 
     def run(self, args):
