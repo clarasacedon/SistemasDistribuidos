@@ -95,7 +95,7 @@ class Authenticator (IceFlix.Authenticator):
 
 # Interface to be used in the topic for user related updates
 class UserUpdate:
-    def __init__(self, servant:Authenticator):
+    def __init__(self, servant):
         self.servant = servant
 
     def newToken(self, user, token, serviceId, current=None):
@@ -134,7 +134,7 @@ class UserUpdate:
             print('User ', user, ' from', serviceId, ' ignored')
 
 class Announcement:
-    def __init__(self, servant:Authenticator):
+    def __init__(self, servant):
         self.servant = servant
 
     def announce(self, service, serviceId, current=None):
