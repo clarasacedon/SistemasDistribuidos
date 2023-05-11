@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
 
 import random
 import sys
@@ -27,21 +27,28 @@ class AuthenticatorData:
         self.currentUsers = {}  # users: passwords
         self.activeTokens = {}  # users: tokens
 
-class Authenticator:
+class Authenticator (IceFlix.Authenticator):
+    def __init__(self):
+        self.id = random.randint(0, 1000000)
+        self.proxies = {}
+        self.database = AuthenticatorData()
+        self.userUpdate = None
+
     def refreshAuthorization(self, user, passwordHash, current=None):
-        password = self.currentUsers.userPasswords.get(user)
+        password = self.database.currentUsers[user]
         if password is None:
             raise IceFlix.Unauthorized()
         elif password == passwordHash:
             token = secrets.token_hex(16)
             self.userUpdate.newToken(user,token,self.id)
-            time.sleep(120.0, self.revocations.revokeToken(token, self.id), args=[token, self.id])
+            #time.sleep(120.0, self.revocations.revokeToken(token, self.id), args=[token, self.id])
+            time.sleep(120.0, self.userUpdate.revokeToken, args=[token, self.id])
         else:
             raise IceFlix.Unauthorized()
         return token
 
     def isAuthorized(self, userToken, current=None):
-        if userToken in self.currentUsers.activeTokens:
+        if userToken in self.database.activeTokens:
             auth = True
         else:
             auth = False
@@ -51,91 +58,91 @@ class Authenticator:
         if not self.isAuthorized(userToken):
             raise IceFlix.Unauthorized()
         else:
-            return self.currentUsers.activeTokens.get(userToken)
-
+            for user, token in self.database.activeTokens.items():
+                if token == userToken:
+                    return user
+        return None
+    
     def isAdmin(self, adminToken, current=None):
-        return self.adminToken == adminToken
+        return self.database.adminToken == adminToken
 
     def addUser(self, user, passwordHash, adminToken, current=None):
-        if self.currentUsers.get(user) or not self.isAdmin(adminToken):
+        if self.database.currentUsers.get(user) or not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
         
-        self.currentUsers[user] = [{
-            "token": secrets.token_hex(16),
-            "passwordHash": passwordHash,
-            "timestamp": time.time()
-        }]
+        self.database.activeTokens[user] = secrets.token_hex(16)
+        self.database.currentUsers[user] = passwordHash
 
         with open(PATH_USERS, 'w') as file:
-            json.dump(self.currentUsers, file)
+            json.dump(self.database.currentUsers, file)
 
         self.userUpdate.newUser(user, passwordHash, self.id)
 
     def removeUser(self, user, adminToken, current=None):
-        if not self.currentUsers.get(user) or not self.isAdmin(adminToken):
+        if not self.database.currentUsers.get(user) or not self.isAdmin(adminToken):
             raise IceFlix.Unauthorized
         
-        self.currentUsers.pop(user)
+        self.database.currentUsers.pop(user)
 
         with open(PATH_USERS, 'w') as file:
-            json.dump(self.currentUsers, file)
+            json.dump(self.database.currentUsers, file)
 
         self.userUpdate.removeUser(user, self.id)
 
     def bulkUpdate(self, current=None):
-        auth_data = IceFlix.AuthenticatorData()
-        auth_data.adminToken = self.adminToken
-        auth_data.currentUsers = {user: data[0]['passwordHash'] for user, data in self.currentUsers.items()}
-        auth_data.activeTokens = {user: data[0]['token'] for user, data in self.currentUsers.items() if data[0]['token']}
-        
-        return auth_data
+        authData = self.database
+        return authData
 
 # Interface to be used in the topic for user related updates
 class UserUpdate:
-    def __init__(self, authenticator):
-        self.authenticator = IceFlix.AuthenticatorPrx.uncheckedCast(Authenticator)
+    def __init__(self, servant:Authenticator):
+        self.servant = servant
 
     def newToken(self, user, token, serviceId, current=None):
-        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+        if serviceId != self.servant.id and serviceId in self.servant.proxies:
             print('New token for ', user, ' received from', serviceId)
-            self.authenticator.currentUsers.activeTokens[token] = user
+            self.servant.database.activeTokens[user] = token
         else:
             print('New token for ', user, ' from', serviceId, ' ignored')
 
     def revokeToken(self, token, serviceId, current=None):
-        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+        if serviceId != self.servant.id and serviceId in self.servant.proxies:
             print("Token ", token, " revoked from ", serviceId)
-            self.authenticator.currentUsers.activeTokens.pop(token)
-        elif serviceId == self.authenticator.id:
+            for user, t in self.servant.database.activeTokens.items():
+                if t == token:
+                    self.servant.database.activeTokens.pop(user)
+        elif serviceId == self.servant.id:
             print('Token ', token, ' timed out')
-            self.authenticator.currentUsers.activeTokens.pop(token)
+            for user, t in self.servant.database.activeTokens.items():
+                if t == token:
+                    self.servant.database.activeTokens.pop(user)
         else:
             print('Token ', token, ' from', serviceId, ' ignored')
 
     def newUser(self, user, passwordHash, serviceId, current=None):
-        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+        if serviceId != self.servant.id and serviceId in self.servant.proxies:
             print('New user for ', user, ' received from', serviceId)
-            self.authenticator.currentUsers[user] = passwordHash
+            self.servant.database.currentUsers[user] = passwordHash
         else:
             print('New user for ', user, ' from', serviceId, ' ignored')
 
     def removeUser(self, user, serviceId, current=None):
-        if serviceId != self.authenticator.id and serviceId in self.authenticator.proxies:
+        if serviceId != self.servant.id and serviceId in self.servant.proxies:
             print('User ', user, ' removed from ', serviceId)
-            self.authenticator.currentUsers.pop(user)
+            self.servant.database.currentUsers.pop(user)
         else:
             print('User ', user, ' from', serviceId, ' ignored')
 
 class Announcement:
-    def __init__(self, authenticator):
-        self.authenticator = IceFlix.AuthenticatorPrx.uncheckedCast(Authenticator)
+    def __init__(self, servant:Authenticator):
+        self.servant = servant
 
     def announce(self, service, serviceId, current=None):
-        if serviceId != self.authenticator.id and serviceId not in self.authenticator.proxies:
+        if serviceId != self.servant.id and serviceId not in self.servant.proxies:
             if service.ice_isA('::IceFlix::Authenticator'):
-                self.authenticator.proxies[serviceId] = IceFlix.AuthenticatorPrx.uncheckedCast(service)
+                self.servant.proxies[serviceId] = IceFlix.AuthenticatorPrx.uncheckedCast(service)
             elif service.ice_isA('::IceFlix::Main'):
-                self.authenticator.proxies[serviceId] = IceFlix.MainPrx.uncheckedCast(service)
+                self.servant.proxies[serviceId] = IceFlix.MainPrx.uncheckedCast(service)
         else:
             print('Service: ', service, ' ignored')
 
