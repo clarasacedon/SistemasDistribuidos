@@ -1,5 +1,33 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-echo "Running IceStorm"
-mkdir -p ./IceStorm
-icebox --Ice.Config="./configs/icebox.config"
+function start_icestorm {
+    mkdir -p /tmp/icestorm
+    icebox --Ice.Config=./configs/icestorm.icebox.config &
+}
+
+function wait_icestorm {
+    while ! netstat -ltnp 2> /dev/null | grep ":10001" > /dev/null; do
+        sleep 1
+        echo "Waiting..."
+    done
+}
+
+function create_topics {
+    for topic in $*; do
+        echo "Create topic $topic"
+        icestormadmin --Ice.Config=configs/icestorm.config -e "create $topic"
+    done
+}
+
+echo "Launching IceStorm..."
+start_icestorm
+
+echo "Waiting for IceStorm to become available..."
+wait_icestorm
+
+echo "Creting topics..."
+create_topics "Announcements" "UserUpdates" "CatalogUpdates" "FileAvailabilityAnnounces"
+
+#echo "Running IceStorm"
+#mkdir -p ./IceStorm
+#icebox --Ice.Config="./configs/icestorm.icebox.config"
