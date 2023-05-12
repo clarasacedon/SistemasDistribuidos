@@ -21,13 +21,13 @@ except ModuleNotFoundError:
     import IceStorm                    
 
 # Auth server #
-class AuthenticatorData:
+class AuthenticatorData(IceFlix.AuthenticatorData):
     def __init__(self):
         self.adminToken = ""
         self.currentUsers = {}  # users: passwords
         self.activeTokens = {}  # users: tokens
 
-class Authenticator (IceFlix.Authenticator):
+class Authenticator(IceFlix.Authenticator):
     def __init__(self):
         self.id = random.randint(0, 1000000)
         self.proxies = {}
@@ -94,7 +94,7 @@ class Authenticator (IceFlix.Authenticator):
         return authData
 
 # Interface to be used in the topic for user related updates
-class UserUpdate:
+class UserUpdate(IceFlix.UserUpdate):
     def __init__(self, servant):
         self.servant = servant
 
@@ -133,7 +133,7 @@ class UserUpdate:
         else:
             print('User ', user, ' from', serviceId, ' ignored')
 
-class Announcement:
+class Announcement(IceFlix.Announcement):
     def __init__(self, servant):
         self.servant = servant
 
@@ -168,7 +168,7 @@ class Server(Ice.Application):
             announcement.announce(authenticator_proxy,servant.id)
             time.sleep(random.randint(1,10), self.announceAuth(authenticator_proxy, servant, topic))
 
-    def find_authenticator_main(authenticator):
+    def find_authenticator_main(authenticator, current=None):
         auth, main = None
         for proxy in authenticator.proxies['Main']:
             value = authenticator.proxies['Main'][proxy]

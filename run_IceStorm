@@ -27,7 +27,3 @@ wait_icestorm
 
 echo "Creting topics..."
 create_topics "Announcements" "UserUpdates" "CatalogUpdates" "FileAvailabilityAnnounces"
-
-#echo "Running IceStorm"
-#mkdir -p ./IceStorm
-#icebox --Ice.Config="./configs/icestorm.icebox.config"
