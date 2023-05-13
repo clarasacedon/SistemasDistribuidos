@@ -187,7 +187,7 @@ class Server(Ice.Application):
         tester_proxy = "IceStorm.TopicManager"
         broker = self.communicator()
 
-        topic_manager = IceStorm.TopicManagerPrx.checkedCast(broker.stringToProxy(tester_proxy))
+        topic_manager = IceStorm.TopicManagerPrx.checkedCast(broker.propertyToProxy(tester_proxy))
 
         adminToken = broker.getProperties().getProperty('adminToken')
         servant = Authenticator()
@@ -204,6 +204,7 @@ class Server(Ice.Application):
         servant.userUpdate = proxyU
 
         time.sleep(12)
+        
         if len(servant.proxies) == 0:
             self.announceAuth(proxyA, authenticator_proxy, servant.id)
         else:
