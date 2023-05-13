@@ -32,5 +32,5 @@ It contains the following files and directories:
 2. Abrir una terminal nueva, independiente de la anterior, y ejecutar el comando `./run_service`.
 3. Podemos probar a abrir otra terminal y volver a ejecutar `./run_service` para simular que hay varios servicios Authenticathor y ver como se reconocen entre ellos.
 
-! Es importante mirar que los archivos "iceflix/authenticator.py", "run_icestorm" y "run_service" tengan los permisos adecuados. Si no es así, podemos concederselos por comando o a través de la interfaz gráfica:  
+**¡!** Es importante mirar que los archivos "*iceflix/authenticator.py*", "*run_icestorm*" y "*run_service*" tengan los permisos adecuados. Si no es así, podemos concedérselos por comando o a través de la interfaz gráfica:  
 ***archivo \> propiedades > permisos \> "Programa: Permitir que este archivo se ejecute com programa"***
