@@ -28,6 +28,6 @@ It contains the following files and directories:
 
 # Ejecución
 
-1. Abrir una terminal, posicionarnos en la carpeta principal del proyecto ("DISTRIBUIDOS") y ejecutar el comando "./run_icestorm". Se debe quedar en espera, sin cerrarse.
-2. Abrir una terminal nueva, independiente de la anterior, y ejecutar el comando "./run_service". Al igual que antes, se queda en "ejecutando" todo el tiempo.
-3. Podemos probar a abrir otra terminal y volver a ejecutar "./run_service" para simular que hay varios servicios Authenticathor y ver como se reconocen entre ellos.
+1. Abrir una terminal, posicionarnos en la carpeta principal del proyecto ("DISTRIBUIDOS") y ejecutar el comando `./run_icestorm`. Se debe quedar en espera, sin cerrarse.
+2. Abrir una terminal nueva, independiente de la anterior, y ejecutar el comando `./run_service`. Al igual que antes, se queda en "ejecutando" todo el tiempo.
+3. Podemos probar a abrir otra terminal y volver a ejecutar `./run_service` para simular que hay varios servicios Authenticathor y ver como se reconocen entre ellos.
