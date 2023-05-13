@@ -29,7 +29,7 @@ class AuthenticatorData(IceFlix.AuthenticatorData):
 
 class Authenticator(IceFlix.Authenticator):
     def __init__(self):
-        self.id = random.randint(0, 1000000)
+        self.id = str(random.randint(0, 1000000))
         self.proxies = {}
         self.database = AuthenticatorData()
         self.userUpdate = None
@@ -166,7 +166,7 @@ class Server(Ice.Application):
         
         return topic, proxy
 
-    def announceAuth(self, announcement, authenticator_proxy, topic, current=None):
+    def announceAuth(self, announcement, authenticator_proxy, id, current=None):
         while True:
             announcement.announce(authenticator_proxy, id)
             time.sleep(random.randint(1,10))
